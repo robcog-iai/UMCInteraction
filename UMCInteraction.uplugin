@@ -1,0 +1,23 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Motion Controller Interaction",
+	"Description": "Physics based control of hands using motion controllers",
+	"Category": "RobCoG",
+	"CreatedBy": "Andrei Haidu",
+	"CreatedByURL": "http://haidu.eu",
+	"DocsURL": "https://github.com/robcog-iai/UMCInteraction",
+	"MarketplaceURL": "http://robcog.org/",
+	"SupportURL": "http://robcog.org/",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "UMCInteraction",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
+		}
+	]
+}
