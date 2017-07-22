@@ -31,6 +31,7 @@ public class UMCInteraction : ModuleRules
 				"Core",
 				"UPIDController",
 				"SemLog",
+				"UTags",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

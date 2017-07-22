@@ -4,7 +4,9 @@
 #include "MCHand.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Engine/Engine.h"
+#include "EngineUtils.h"
+#include "TagStatics.h"
+#include "SLUtils.h"
 
 // Sets default values
 AMCHand::AMCHand()
@@ -23,7 +25,7 @@ AMCHand::AMCHand()
 	TwoHandsFixationMaximumMass = 15.f;
 	TwoHandsFixationMaximumLength = 120.f;
 
-	// Set attachement collision component
+	// Set attachment collision component
 	FixationGraspArea = CreateDefaultSubobject<USphereComponent>(TEXT("FixationGraspArea"));
 	FixationGraspArea->SetupAttachment(GetRootComponent());
 	FixationGraspArea->InitSphereRadius(4.f);
@@ -55,6 +57,13 @@ AMCHand::AMCHand()
 void AMCHand::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Get the semantic log runtime manager from the world
+	for (TActorIterator<ASLRuntimeManager>RMItr(GetWorld()); RMItr; ++RMItr)
+	{
+		SemLogRuntimeManager = *RMItr;
+		break;
+	}
 
 	// Disable tick as default
 	SetActorTickEnabled(false);
@@ -216,6 +225,10 @@ bool AMCHand::TryOneHandFixationGrasp()
 		
 		// Disable overlap checks for the fixation grasp area during active grasping
 		FixationGraspArea->bGenerateOverlapEvents = false;
+		
+		// Start grasp event
+		AMCHand::StartGraspEvent(OneHandGraspedObject);
+		
 		// Successful grasp
 		return true;
 	}
@@ -294,6 +307,9 @@ bool AMCHand::DetachFixationGrasp()
 
 	if (OneHandGraspedObject)
 	{
+		// Finish grasp event
+		AMCHand::FinishGraspEvent(OneHandGraspedObject);
+
 		// Detach object from hand
 		OneHandGraspedObject->GetStaticMeshComponent()->DetachFromComponent(FDetachmentTransformRules(
 			EDetachmentRule::KeepWorld, EDetachmentRule::KeepWorld, EDetachmentRule::KeepWorld, true));
@@ -374,6 +390,78 @@ void AMCHand::SetOtherHand(AMCHand* InOtherHand)
 	OtherHand = InOtherHand;
 	UE_LOG(LogTemp, Error, TEXT("AMCHand: %s has pointer to other hand: %s!"), *GetName(), *OtherHand->GetName());
 
+}
+
+// Start grasp event
+bool AMCHand::StartGraspEvent(AActor* OtherActor)
+{
+	// Check if actor has a semantic description
+	int32 TagIndex = FTagStatics::GetTagTypeIndex(OtherActor->Tags, "SemLog");
+
+	// If tag type exist, read the Class and the Id
+	if (TagIndex != INDEX_NONE)
+	{
+		// Get the Class and Id from the semantic description
+		const FString OtherActorClass = FTagStatics::GetKeyValue(OtherActor->Tags[TagIndex], "Class");
+		const FString OtherActorId = FTagStatics::GetKeyValue(OtherActor->Tags[TagIndex], "Id");
+
+		// Example of a contact event represented in OWL:
+		/********************************************************************
+		<!-- Event node described with a FOwlTriple (Subject-Predicate-Object) and Properties: -->
+		<owl:NamedIndividual rdf:about="&log;GraspingSomething_S1dz">
+			<!-- List of the event properties as FOwlTriple (Subject-Predicate-Object): -->
+			<rdf:type rdf:resource="&knowrob;GraspingSomething"/>
+			<knowrob:taskContext rdf:datatype="&xsd;string">Grasp-LeftHand_BRmZ-Bowl3_9w2Y</knowrob:taskContext>
+			<knowrob:startTime rdf:resource="&log;timepoint_22.053652"/>
+			<knowrob:objectActedOn rdf:resource="&log;Bowl3_9w2Y"/>
+			<knowrob:performedBy rdf:resource="&log;LeftHand_BRmZ"/>
+			<knowrob:endTime rdf:resource="&log;timepoint_32.28545"/>
+		</owl:NamedIndividual>
+		*********************************************************************/
+
+		// Create contact event and other actor individual
+		const FOwlIndividualName OtherIndividual("log", OtherActorClass, OtherActorId);
+		const FOwlIndividualName GraspingIndividual("log", "GraspingSomething", FSLUtils::GenerateRandomFString(4));
+		// Owl prefixed names
+		const FOwlPrefixName RdfType("rdf", "type");
+		const FOwlPrefixName RdfAbout("rdf", "about");
+		const FOwlPrefixName RdfResource("rdf", "resource");
+		const FOwlPrefixName RdfDatatype("rdf", "datatype");
+		const FOwlPrefixName TaskContext("knowrob", "taskContext");
+		const FOwlPrefixName PerformedBy("knowrob", "performedBy");
+		const FOwlPrefixName ActedOn("knowrob", "objectActedOn");
+		const FOwlPrefixName OwlNamedIndividual("owl", "NamedIndividual");
+		// Owl classes
+		const FOwlClass XsdString("xsd", "string");
+		const FOwlClass TouchingSituation("knowrob_u", "TouchingSituation");
+
+		// Add the event properties
+		TArray <FOwlTriple> Properties;
+		Properties.Add(FOwlTriple(RdfType, RdfResource, TouchingSituation));
+		Properties.Add(FOwlTriple(TaskContext, RdfDatatype, XsdString,
+			"Grasp-" + HandIndividual.GetName() + "-" + OtherIndividual.GetName()));
+		Properties.Add(FOwlTriple(PerformedBy, RdfResource, HandIndividual));
+		Properties.Add(FOwlTriple(ActedOn, RdfResource, OtherIndividual));
+
+		// Create the contact event
+		TSharedPtr<FOwlNode> GraspEvent = MakeShareable(new FOwlNode(
+			OwlNamedIndividual, RdfAbout, GraspingIndividual, Properties));
+
+		// Start the event with the given properties
+		return SemLogRuntimeManager->StartEvent(GraspEvent);
+	}
+	return false;
+}
+
+// Finish grasp event
+bool AMCHand::FinishGraspEvent(AActor* OtherActor)
+{
+	// Check if event started
+	if (GraspEvent.IsValid())
+	{
+		return SemLogRuntimeManager->FinishEvent(GraspEvent);
+	}
+	return false;
 }
 
 // Check how the object graspable

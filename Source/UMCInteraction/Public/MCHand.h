@@ -7,6 +7,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SphereComponent.h"
 #include "Engine/StaticMeshActor.h"
+#include "SLRuntimeManager.h"
 #include "MCFinger.h"
 #include "MCHand.generated.h"
 
@@ -46,9 +47,6 @@ public:
 
 	// Update the grasp //TODO state, power, step
 	void UpdateGrasp(const float Goal);
-
-	// Update the grasp with the mannequin hand
-	void UpdateGrasp2(const float Alpha);
 
 	// Switch the grasping style
 	void SwitchGrasp();
@@ -119,13 +117,11 @@ protected:
 		class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 private:
-	// Enable grasping with fixation
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp")
-	bool bFixationGraspEnabled;
+	// Start grasp event
+	bool StartGraspEvent(AActor* OtherActor);
 
-	// Enable two hand grasping with fixation
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bEnableFixationGrasp"))
-	bool bTwoHandsFixationGraspEnabled;
+	// Finish grasp event
+	bool FinishGraspEvent(AActor* OtherActor);
 
 	// Check if object is graspable, return the number of hands (0, 1, 2)
 	uint8 CheckObjectGraspableType(AActor* InActor);
@@ -142,24 +138,32 @@ private:
 	// Setup fingers angular drive values
 	void SetupAngularDriveValues(EAngularDriveMode::Type DriveMode);
 
+	// Enable grasping with fixation
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp")
+	bool bFixationGraspEnabled;
+
+	// Enable two hand grasping with fixation
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bFixationGraspEnabled"))
+	bool bTwoHandsFixationGraspEnabled;
+
 	// Collision component used for attaching grasped objects
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bEnableFixationGrasp"))
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bFixationGraspEnabled"))
 	USphereComponent* FixationGraspArea;
 
 	// Maximum mass (kg) of an object that can be attached to the hand
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bEnableFixationGrasp"), meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bFixationGraspEnabled"), meta = (ClampMin = 0))
 	float OneHandFixationMaximumMass;
 
 	// Maximum length (cm) of an object that can be attached to the hand
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bEnableFixationGrasp"), meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bFixationGraspEnabled"), meta = (ClampMin = 0))
 	float OneHandFixationMaximumLength;
 
 	// Maximum mass (kg) of an object that can be attached to two hands
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bEnableFixationGrasp"), meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bFixationGraspEnabled"), meta = (ClampMin = 0))
 	float TwoHandsFixationMaximumMass;
 
 	// Maximum length (cm) of an object that can be attached to two hands
-	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bEnableFixationGrasp"), meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, Category = "MC|Fixation Grasp", meta = (editcondition = "bFixationGraspEnabled"), meta = (ClampMin = 0))
 	float TwoHandsFixationMaximumLength;
 
 	// Spring value to apply to the angular drive (Position strength)
@@ -204,4 +208,13 @@ private:
 
 	// Mark that the grasp has been held, avoid reinitializing the finger drivers
 	bool bGraspHeld;
+
+	// Hand individual
+	FOwlIndividualName HandIndividual;
+
+	// Semantic events runtime manager
+	ASLRuntimeManager* SemLogRuntimeManager;
+
+	// Current grasp event
+	TSharedPtr<FOwlNode> GraspEvent;
 };
