@@ -28,7 +28,7 @@ AMCHand::AMCHand()
 	// Set attachment collision component
 	FixationGraspArea = CreateDefaultSubobject<USphereComponent>(TEXT("FixationGraspArea"));
 	FixationGraspArea->SetupAttachment(GetRootComponent());
-	FixationGraspArea->InitSphereRadius(4.f);
+	FixationGraspArea->InitSphereRadius(3.f);
 
 	// Set default as left hand
 	HandType = EHandType::Left;
@@ -74,6 +74,17 @@ void AMCHand::BeginPlay()
 
 	// Setup the values for controlling the hand fingers
 	AMCHand::SetupAngularDriveValues(AngularDriveMode);
+
+	// Set hand semantic logging (SL) individual name
+	int32 TagIndex = FTagStatics::GetTagTypeIndex(Tags, "SemLog");
+	// If tag type exist, read the Class and the Id
+	if (TagIndex != INDEX_NONE)
+	{
+		HandIndividual = FOwlIndividualName("log",
+			FTagStatics::GetKeyValue(Tags[TagIndex], "Class"),
+			FTagStatics::GetKeyValue(Tags[TagIndex], "Id"));
+	}
+
 
 }
 
@@ -388,8 +399,6 @@ bool AMCHand::IsTwoHandGraspStillValid()
 void AMCHand::SetOtherHand(AMCHand* InOtherHand)
 {
 	OtherHand = InOtherHand;
-	UE_LOG(LogTemp, Error, TEXT("AMCHand: %s has pointer to other hand: %s!"), *GetName(), *OtherHand->GetName());
-
 }
 
 // Start grasp event
