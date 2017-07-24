@@ -324,7 +324,6 @@ bool AMCHand::DetachFixationGrasp()
 		// Detach object from hand
 		OneHandGraspedObject->GetStaticMeshComponent()->DetachFromComponent(FDetachmentTransformRules(
 			EDetachmentRule::KeepWorld, EDetachmentRule::KeepWorld, EDetachmentRule::KeepWorld, true));
-		UE_LOG(LogTemp, Warning, TEXT("AMCHand: Detached %s from %s"), *OneHandGraspedObject->GetName(), *GetName());
 
 		// Enable physics with and apply current hand velocity, clear pointer to object
 		OneHandGraspedObject->GetStaticMeshComponent()->SetSimulatePhysics(true);
@@ -479,26 +478,23 @@ uint8 AMCHand::CheckObjectGraspableType(AActor* InActor)
 	// Check if the static mesh actor can be grasped
 	AStaticMeshActor* const SMActor = Cast<AStaticMeshActor>(InActor);
 	if (SMActor)
-	{
-		// Get the static mesh component
+	{		
+		// Check that actor is movable, has a static mesh component, and physics  enabled
 		UStaticMeshComponent* const SMComp = SMActor->GetStaticMeshComponent();
-		if (SMComp)
+		if (SMComp && SMActor->IsRootComponentMovable() && SMComp->IsSimulatingPhysics())
 		{
-			// Check that actor is movable, has a static mesh component, has physics on,
-			// and has one hand graspable dimensions
-			if (SMActor->IsRootComponentMovable() &&
-				SMComp->IsSimulatingPhysics() &&
-				SMComp->GetMass() < OneHandFixationMaximumMass &&
+			if (SMComp->GetMass() < OneHandFixationMaximumMass &&
 				SMActor->GetComponentsBoundingBox().GetSize().Size() < OneHandFixationMaximumLength)
 			{
+				// one hand graspable size/dimension met
 				return ONE_HAND_GRASPABLE;
 			}
-			// check for two hand graspable dimensions
-			else if(SMComp->GetMass() < TwoHandsFixationMaximumMass &&
-				SMActor->GetComponentsBoundingBox().GetSize().Size() < TwoHandsFixationMaximumLength)
+			else if(SMComp->GetMass() < TwoHandsFixationMaximumMass 
+				&& SMActor->GetComponentsBoundingBox().GetSize().Size() < TwoHandsFixationMaximumLength)
 			{
+				// two hand graspable size/dimensions met
 				return TWO_HANDS_GRASPABLE;
-			}
+			}		
 		}
 	}
 	// Actor cannot be attached
