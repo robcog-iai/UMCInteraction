@@ -84,8 +84,6 @@ void AMCHand::BeginPlay()
 			FTagStatics::GetKeyValue(Tags[TagIndex], "Class"),
 			FTagStatics::GetKeyValue(Tags[TagIndex], "Id"));
 	}
-
-
 }
 
 // Called every frame, used for motion control
@@ -228,6 +226,7 @@ bool AMCHand::TryOneHandFixationGrasp()
 
 		// Disable physics on the object and attach it to the hand
 		OneHandGraspedObject->GetStaticMeshComponent()->SetSimulatePhysics(false);
+		OneHandGraspedObject->GetStaticMeshComponent()->bGenerateOverlapEvents = false;
 
 		/*OneHandGraspedObject->AttachToComponent(GetRootComponent(), FAttachmentTransformRules(
 			EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));*/
@@ -267,16 +266,17 @@ bool AMCHand::TryTwoHandsFixationGrasp()
 
 			// Disable physics on the object and attach it to the hand
 			TwoHandsGraspedObject->GetStaticMeshComponent()->SetSimulatePhysics(false);
+			TwoHandsGraspedObject->GetStaticMeshComponent()->bGenerateOverlapEvents = false;
 
 			TwoHandsGraspedObject->AttachToComponent(GetRootComponent(), FAttachmentTransformRules(
 				EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
-			//TwoHandsGraspedObject->AttachToActor(this, FAttachmentTransformRules(
-			//	EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
-
-			UE_LOG(LogTemp, Warning, TEXT("AMCHand: TwoHand Attached %s to %s"), *TwoHandsGraspedObject->GetName(), *GetName());
 			
 			// Disable overlaps of the fixation grasp area during the active grasp
 			FixationGraspArea->bGenerateOverlapEvents = false;
+
+			// Start grasp event
+			AMCHand::StartGraspEvent(TwoHandsGraspedObject);
+			OtherHand->StartGraspEvent(TwoHandsGraspedObject);
 
 			// Set other hands grasp as well
 			OtherHand->TwoHandsFixationGraspFromOther();
@@ -327,12 +327,17 @@ bool AMCHand::DetachFixationGrasp()
 
 		// Enable physics with and apply current hand velocity, clear pointer to object
 		OneHandGraspedObject->GetStaticMeshComponent()->SetSimulatePhysics(true);
+		OneHandGraspedObject->GetStaticMeshComponent()->bGenerateOverlapEvents = true;
 		OneHandGraspedObject->GetStaticMeshComponent()->SetPhysicsLinearVelocity(GetVelocity());
 		OneHandGraspedObject = nullptr;
 		return true;
 	}
 	else if (TwoHandsGraspedObject && OtherHand)
 	{
+		// Finish grasp event
+		AMCHand::FinishGraspEvent(TwoHandsGraspedObject);
+		OtherHand->FinishGraspEvent(TwoHandsGraspedObject);
+
 		// Detach object from hand
 		TwoHandsGraspedObject->GetStaticMeshComponent()->DetachFromComponent(FDetachmentTransformRules(
 			EDetachmentRule::KeepWorld, EDetachmentRule::KeepWorld, EDetachmentRule::KeepWorld, true));
@@ -340,6 +345,7 @@ bool AMCHand::DetachFixationGrasp()
 		// Enable physics with and apply current hand velocity, clear pointer to object
 		TwoHandsGraspedObject->GetStaticMeshComponent()->SetSimulatePhysics(true);
 		TwoHandsGraspedObject->GetStaticMeshComponent()->SetPhysicsLinearVelocity(GetVelocity());
+		TwoHandsGraspedObject->GetStaticMeshComponent()->bGenerateOverlapEvents = true;
 		TwoHandsGraspedObject = nullptr;		
 
 		// Trigger detachment on other hand as well
@@ -375,6 +381,7 @@ bool AMCHand::DetachTwoHandFixationGraspFromOther()
 		// Enable physics with and apply current hand velocity, clear pointer to object
 		TwoHandsGraspedObject->GetStaticMeshComponent()->SetSimulatePhysics(true);
 		TwoHandsGraspedObject->GetStaticMeshComponent()->SetPhysicsLinearVelocity(GetVelocity());
+		TwoHandsGraspedObject->GetStaticMeshComponent()->bGenerateOverlapEvents = true;
 		TwoHandsGraspedObject = nullptr;
 		return true;
 	}
@@ -447,12 +454,12 @@ bool AMCHand::StartGraspEvent(AActor* OtherActor)
 		TArray <FOwlTriple> Properties;
 		Properties.Add(FOwlTriple(RdfType, RdfResource, TouchingSituation));
 		Properties.Add(FOwlTriple(TaskContext, RdfDatatype, XsdString,
-			"Grasp-" + HandIndividual.GetName() + "-" + OtherIndividual.GetName()));
+			"Grasp-" + OtherIndividual.GetName() + "-" + HandIndividual.GetName()));
 		Properties.Add(FOwlTriple(PerformedBy, RdfResource, HandIndividual));
 		Properties.Add(FOwlTriple(ActedOn, RdfResource, OtherIndividual));
 
 		// Create the contact event
-		TSharedPtr<FOwlNode> GraspEvent = MakeShareable(new FOwlNode(
+		GraspEvent = MakeShareable(new FOwlNode(
 			OwlNamedIndividual, RdfAbout, GraspingIndividual, Properties));
 
 		// Start the event with the given properties
@@ -468,6 +475,8 @@ bool AMCHand::FinishGraspEvent(AActor* OtherActor)
 	if (GraspEvent.IsValid())
 	{
 		return SemLogRuntimeManager->FinishEvent(GraspEvent);
+		// Clear event
+		GraspEvent.Reset();
 	}
 	return false;
 }
