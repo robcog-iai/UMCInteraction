@@ -448,11 +448,11 @@ bool AMCHand::StartGraspEvent(AActor* OtherActor)
 		const FOwlPrefixName OwlNamedIndividual("owl", "NamedIndividual");
 		// Owl classes
 		const FOwlClass XsdString("xsd", "string");
-		const FOwlClass TouchingSituation("knowrob_u", "TouchingSituation");
+		const FOwlClass GraspingSomething("knowrob", "GraspingSomething");
 
 		// Add the event properties
 		TArray <FOwlTriple> Properties;
-		Properties.Add(FOwlTriple(RdfType, RdfResource, TouchingSituation));
+		Properties.Add(FOwlTriple(RdfType, RdfResource, GraspingSomething));
 		Properties.Add(FOwlTriple(TaskContext, RdfDatatype, XsdString,
 			"Grasp-" + OtherIndividual.GetName() + "-" + HandIndividual.GetName()));
 		Properties.Add(FOwlTriple(PerformedBy, RdfResource, HandIndividual));
