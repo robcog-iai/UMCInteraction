@@ -9,6 +9,7 @@
 #include "Components/InputComponent.h"
 #include "HeadMountedDisplay.h"
 #include "IHeadMountedDisplay.h"
+#include "IXRTrackingSystem.h"
 
 // Sets default values
 AMCCharacter::AMCCharacter()
@@ -81,8 +82,8 @@ void AMCCharacter::BeginPlay()
 	RightPIDController.SetValues(PGain, IGain, DGain, MaxOutput, -MaxOutput);
 
 	// Check if VR is enabled
-	IHeadMountedDisplay* HMD = (IHeadMountedDisplay*)(GEngine->HMDDevice.Get());
-	if (HMD && HMD->IsStereoEnabled())
+	IHeadMountedDisplay* HMD = (IHeadMountedDisplay*)(GEngine->XRSystem->GetHMDDevice());
+	if (HMD && HMD->IsHMDEnabled())
 	{		
 		// VR MODE
 		//CharCamera->SetRelativeLocation(FVector(0.0f, 0.0f, -GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
@@ -224,8 +225,8 @@ void AMCCharacter::MoveHandsOnZ(const float Value)
 	if (Value != 0)
 	{
 		// Check if VR is enabled
-		IHeadMountedDisplay* HMD = (IHeadMountedDisplay*)(GEngine->HMDDevice.Get());
-		if (!(HMD && HMD->IsStereoEnabled()))
+		IHeadMountedDisplay* HMD = (IHeadMountedDisplay*)(GEngine->XRSystem->GetHMDDevice());
+		if (!(HMD && HMD->IsHMDEnabled()))
 		{
 			MCLeft->AddLocalOffset(FVector(0.f, 0.f, Value));
 			MCRight->AddLocalOffset(FVector(0.f, 0.f, Value));
@@ -264,7 +265,7 @@ FORCEINLINE void AMCCharacter::UpdateHandLocationAndRotation(
 	// Use the xyz part of the quat as the rotation velocity
 	const FQuat OutputFromQuat = TargetQuat * CurrQuat.Inverse();
 	const FVector RotOutput = FVector(OutputFromQuat.X, OutputFromQuat.Y, OutputFromQuat.Z) * RotationBoost;
-	SkelMesh->SetAllPhysicsAngularVelocity(RotOutput);
+	SkelMesh->SetAllPhysicsAngularVelocityInDegrees(RotOutput);
 }
 
 // Switch Grasp

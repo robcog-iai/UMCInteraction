@@ -19,5 +19,23 @@
 			"Type": "Developer",
 			"LoadingPhase": "Default"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "USemLog",
+			"Enabled": true
+		},
+		{
+			"Name": "UPIDController",
+			"Enabled": true
+		},
+		{
+			"Name": "UTags",
+			"Enabled": true
+		},
+		{
+			"Name": "SteamVR",
+			"Enabled": true
+		},
 	]
 }
